@@ -3,9 +3,17 @@ from collections.abc import AsyncIterator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.editorial import EditorialService, IngestArticlesService, SourceService
+from app.application.editorial import (
+    EditorialService,
+    IngestArticlesService,
+    SourceService,
+    SubmitArticleService,
+)
+from app.application.draft_workflow import DraftWorkflowService
 from app.application.polishing import PolishArticleService
 from app.application.publishing import PublishArticleService
+from app.infrastructure.crawler.dispatching import DispatchingCrawler
+from app.infrastructure.crawler.html_page import HtmlArticleCrawler
 from app.infrastructure.crawler.rss import RssFeedCrawler
 from app.infrastructure.db.repositories import (
     SqlArticleRepository,
@@ -15,6 +23,10 @@ from app.infrastructure.db.repositories import (
 from app.infrastructure.db.session import SessionLocal
 from app.infrastructure.llm.openai_polisher import OpenAICompatiblePolisher
 from app.infrastructure.wechat.publisher import WeChatOfficialPublisher
+
+
+_html_crawler = HtmlArticleCrawler()
+_feed_crawler = DispatchingCrawler(RssFeedCrawler(), _html_crawler)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
@@ -28,8 +40,12 @@ def get_source_service(session: AsyncSession = Depends(get_session)) -> SourceSe
 
 def get_ingest_service(session: AsyncSession = Depends(get_session)) -> IngestArticlesService:
     return IngestArticlesService(
-        SqlSourceRepository(session), SqlArticleRepository(session), RssFeedCrawler()
+        SqlSourceRepository(session), SqlArticleRepository(session), _feed_crawler
     )
+
+
+def get_submit_service(session: AsyncSession = Depends(get_session)) -> SubmitArticleService:
+    return SubmitArticleService(SqlArticleRepository(session), _html_crawler)
 
 
 def get_editorial_service(session: AsyncSession = Depends(get_session)) -> EditorialService:
@@ -46,5 +62,13 @@ def get_publish_service(session: AsyncSession = Depends(get_session)) -> Publish
     return PublishArticleService(
         SqlArticleRepository(session),
         SqlPublicationRepository(session),
+        WeChatOfficialPublisher(),
+    )
+
+
+def get_draft_workflow_service() -> DraftWorkflowService:
+    return DraftWorkflowService(
+        _html_crawler,
+        OpenAICompatiblePolisher(),
         WeChatOfficialPublisher(),
     )

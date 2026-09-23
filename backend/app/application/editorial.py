@@ -1,8 +1,39 @@
 from uuid import uuid4
 
-from app.core.errors import NotFoundError
-from app.domain.models import Article, ArticleRepository, ArticleStatus, FeedCrawler, Source, SourceRepository
+import httpx
+
+from app.core.errors import AppError, ConflictError, NotFoundError
+from app.domain.formatting import plain_summary
+from app.domain.models import (
+    Article,
+    ArticleRepository,
+    ArticleStatus,
+    CrawledItem,
+    FeedCrawler,
+    PageCrawler,
+    Source,
+    SourceRepository,
+)
 from app.domain.scoring import score_article
+from app.infrastructure.images import localize_images
+
+
+def _to_article(item: CrawledItem, source_id: str | None, topics: str) -> Article:
+    return Article(
+        id=str(uuid4()),
+        source_id=source_id,
+        title=item.title,
+        summary=item.summary,
+        body_html=item.body_html,
+        source_url=item.source_url,
+        author=item.author,
+        status=ArticleStatus.INGESTED,
+        quality_score=score_article(
+            title=item.title, summary=item.summary, body=item.body_html
+        ),
+        topics=topics,
+        metrics=item.metrics,
+    )
 
 
 class SourceService:
@@ -48,23 +79,61 @@ class IngestArticlesService:
                 if await self._articles.get_by_source_url(item.source_url):
                     skipped += 1
                     continue
-                article = Article(
-                    id=str(uuid4()),
-                    source_id=source.id,
-                    title=item.title,
-                    summary=item.summary,
-                    body_html=item.body_html,
-                    source_url=item.source_url,
-                    author=item.author,
-                    status=ArticleStatus.INGESTED,
-                    quality_score=score_article(
-                        title=item.title, summary=item.summary, body=item.body_html
-                    ),
-                    topics=source.topics,
-                )
-                await self._articles.add(article)
+                await self._articles.add(_to_article(item, source.id, source.topics))
                 created += 1
         return created, skipped
+
+
+class SubmitArticleService:
+    """人工提交一条公开文章链接，直接抓取入库。"""
+
+    def __init__(self, articles: ArticleRepository, crawler: PageCrawler) -> None:
+        self._articles = articles
+        self._crawler = crawler
+
+    async def submit(self, url: str, topics: str) -> Article:
+        if await self._articles.get_by_source_url(url):
+            raise ConflictError("该链接已入库")
+        item = await self._crawler.fetch_one(url)
+        return await self._articles.add(_to_article(item, None, topics))
+
+    async def submit_many(self, urls: list[str], topics: str) -> tuple[int, int, list[str]]:
+        created = 0
+        skipped = 0
+        failures: list[str] = []
+        for url in urls:
+            try:
+                await self.submit(url, topics)
+                created += 1
+            except ConflictError:
+                skipped += 1
+            except AppError as exc:
+                failures.append(f"{url} → {exc.message}")
+        return created, skipped, failures
+
+    async def create_from_link(
+        self, title: str, url: str, topics: str, author: str = ""
+    ) -> Article:
+        """按标题和原文链接抓取正文；图片在抓取时去掉右下角水印。"""
+        if await self._articles.get_by_source_url(url):
+            raise ConflictError("该链接已入库")
+        item = await self._crawler.fetch_one(url)
+        item.title = title.strip() or item.title
+        if author.strip():
+            item.author = author.strip()
+        item.summary = plain_summary(item.body_html)
+        return await self._articles.add(_to_article(item, None, topics))
+
+    async def create_pasted(self, item: CrawledItem, topics: str) -> Article:
+        """粘贴录入：保留正文，公众号图片去水印后改成本地地址。"""
+        if await self._articles.get_by_source_url(item.source_url):
+            raise ConflictError("该链接已入库")
+        async with httpx.AsyncClient(timeout=30) as client:
+            item.body_html = await localize_images(
+                client, item.body_html, page_url=item.source_url
+            )
+        item.summary = plain_summary(item.body_html)
+        return await self._articles.add(_to_article(item, None, topics))
 
 
 class EditorialService:

@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/app.db"
     auto_publish: bool = False
     crawl_interval_minutes: int = 360
+    crawl_user_agent: str = "FitLifePublisherBot/1.0 (+contact: operator)"
+    crawl_delay_seconds: float = 2.0
+    crawl_timeout_seconds: float = 20.0
+    crawl_max_items_per_source: int = 20
+    crawl_respect_robots: bool = True
     cors_origins: str = "http://localhost:5173,http://localhost:5174"
     log_level: str = "INFO"
     llm_api_base_url: str = "https://aimeter.xk-devops.com/v1"

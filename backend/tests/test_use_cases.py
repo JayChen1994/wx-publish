@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.application.editorial import IngestArticlesService
+from app.application.editorial import IngestArticlesService, SubmitArticleService
 from app.application.polishing import PolishArticleService
 from app.application.publishing import PublishArticleService
 from app.core.errors import ConflictError
@@ -111,6 +111,39 @@ class FakePolisher:
                 f"<a href=\"{article.source_url}\">原文</a></p>"
             ),
         )
+
+
+class FakePageCrawler:
+    def __init__(self, item: CrawledItem) -> None:
+        self.item = item
+        self.calls = 0
+
+    async def fetch_one(self, url: str) -> CrawledItem:
+        self.calls += 1
+        return self.item
+
+
+@pytest.mark.asyncio
+async def test_submit_url_stores_metrics_and_rejects_duplicates() -> None:
+    item = CrawledItem(
+        title="高赞减脂经验",
+        summary="摘要",
+        body_html="<p>控制热量缺口</p>",
+        source_url="https://www.toutiao.com/article/1",
+        author="原作者",
+        metrics="阅读 12万 · 点赞 3000",
+    )
+    articles = MemArticles()
+    crawler = FakePageCrawler(item)
+    svc = SubmitArticleService(articles, crawler)
+
+    stored = await svc.submit(item.source_url, "健身减脂")
+    assert stored.metrics == "阅读 12万 · 点赞 3000"
+    assert stored.status == ArticleStatus.INGESTED
+
+    with pytest.raises(ConflictError):
+        await svc.submit(item.source_url, "健身减脂")
+    assert crawler.calls == 1
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from app.api.articles import router as articles_router
+from app.api.draft import router as draft_router
 from app.api.schemas import HealthOut
 from app.api.sources import router as sources_router
 from app.core.config import settings
@@ -52,6 +55,10 @@ def create_app() -> FastAPI:
     )
     app.include_router(sources_router, prefix="/api/v1")
     app.include_router(articles_router, prefix="/api/v1")
+    app.include_router(draft_router, prefix="/api/v1")
+    media_dir = Path("data/media")
+    media_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
 
     @app.exception_handler(AppError)
     async def handle_app_error(_, exc: AppError) -> JSONResponse:

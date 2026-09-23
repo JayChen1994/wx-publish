@@ -11,6 +11,8 @@ class ArticleStatus(StrEnum):
 
 class SourceKind(StrEnum):
     RSS = "rss"
+    HTML_LIST = "html_list"
+    HTML_PAGE = "html_page"
 
 
 class Source:
@@ -44,6 +46,7 @@ class Article:
         status: ArticleStatus,
         quality_score: int,
         topics: str,
+        metrics: str = "",
     ) -> None:
         self.id = id
         self.source_id = source_id
@@ -55,6 +58,7 @@ class Article:
         self.status = status
         self.quality_score = quality_score
         self.topics = topics
+        self.metrics = metrics
 
     def approve(self) -> None:
         if self.status == ArticleStatus.PUBLISHED:
@@ -82,12 +86,14 @@ class CrawledItem:
         body_html: str,
         source_url: str,
         author: str,
+        metrics: str = "",
     ) -> None:
         self.title = title
         self.summary = summary
         self.body_html = body_html
         self.source_url = source_url
         self.author = author
+        self.metrics = metrics
 
 
 class PublishResult:
@@ -136,6 +142,10 @@ class PublicationRepository(Protocol):
 
 class FeedCrawler(Protocol):
     async def fetch(self, source: Source) -> list[CrawledItem]: ...
+
+
+class PageCrawler(Protocol):
+    async def fetch_one(self, url: str) -> CrawledItem: ...
 
 
 class ContentPolisher(Protocol):

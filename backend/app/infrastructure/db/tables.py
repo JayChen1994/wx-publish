@@ -34,6 +34,7 @@ class ArticleRow(Base):
     status: Mapped[str] = mapped_column(String(32), default="ingested")
     quality_score: Mapped[int] = mapped_column(Integer, default=0)
     topics: Mapped[str] = mapped_column(String(200), default="")
+    metrics: Mapped[str] = mapped_column(String(200), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     source: Mapped[SourceRow | None] = relationship(back_populates="articles")
 

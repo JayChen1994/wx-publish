@@ -26,7 +26,7 @@ class PublishArticleService:
         try:
             result = await self._publisher.publish_draft(
                 title=article.title,
-                author=article.author or "FitLife",
+                author="",
                 digest=article.summary or article.title,
                 content_html=article.body_html,
                 source_url=article.source_url,

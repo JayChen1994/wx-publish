@@ -30,6 +30,7 @@ def _article_from_row(row: ArticleRow) -> Article:
         status=ArticleStatus(row.status),
         quality_score=row.quality_score,
         topics=row.topics,
+        metrics=row.metrics or "",
     )
 
 
@@ -124,6 +125,7 @@ class SqlArticleRepository:
                 status=article.status.value,
                 quality_score=article.quality_score,
                 topics=article.topics,
+                metrics=article.metrics,
             )
         )
         await self._session.commit()
@@ -140,6 +142,7 @@ class SqlArticleRepository:
         row.status = article.status.value
         row.quality_score = article.quality_score
         row.topics = article.topics
+        row.metrics = article.metrics
         await self._session.commit()
 
 
