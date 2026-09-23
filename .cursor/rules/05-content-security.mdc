@@ -1,0 +1,21 @@
+---
+description: 内容版权、抓取边界与密钥安全
+alwaysApply: true
+---
+
+# 内容与安全
+
+- 今日头条、小红书、微信公众号只通过官方/已授权接口或人工提交公开链接采集；禁止破解登录、验证码或反爬。
+- 未获全文授权时只保存标题、摘要、热度、链接及编辑新增内容；AI 润色不能替代版权授权。
+- 入库保留标题、摘要、正文、作者、`source_url`。发布须填微信 `content_source_url`。
+- 审核状态机：`ingested → approved|rejected → published`。拒绝后不可发布。
+- 密钥：`.env` gitignore；日志打码；前端只显示「凭证是否已配置」。
+- 用户聊天里贴过的 AppSecret/API Key 视为已泄露，提醒轮换，且不得写入文档或代码。
+
+```python
+# ❌ BAD — 仓库里写死 secret
+WECHAT_APP_SECRET = "5925..."
+
+# ✅ GOOD
+settings.wechat_app_secret  # 仅进程内，来自环境变量
+```

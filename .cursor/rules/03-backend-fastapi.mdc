@@ -1,0 +1,19 @@
+---
+description: FastAPI 后端约定
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# 后端
+
+- 路由前缀 `/api/v1`；Pydantic v2 schema 与领域实体分离。
+- 状态变更走应用服务，不在 ORM 模型上堆流程方法。
+- 外部 I/O（微信、RSS）一律 `httpx`/`feedparser`，放在 infrastructure，带超时。
+- 配置用 `pydantic-settings`，从 `.env` 读取；禁止默认密钥。
+- 异步 SQLAlchemy 2.x；仓储方法名用领域语言：`get_by_source_url`。
+- 调度只触发应用服务 `ingest_due_sources()`，不内联爬虫逻辑。
+
+```python
+# ❌ BAD — schema 即数据库模型，直接 commit
+# ✅ GOOD — API schema → service command → 仓储持久化
+```

@@ -1,0 +1,33 @@
+---
+description: 分层与依赖方向（六边形/整洁架构）
+alwaysApply: true
+---
+
+# 分层
+
+```
+api → application → domain
+         ↑
+infrastructure（实现 domain 端口）
+```
+
+- `domain`：实体、值对象、不变量、Port（Protocol）。零第三方框架。
+- `application`：用例编排、事务边界。只依赖 domain 端口。
+- `infrastructure`：DB、HTTP、RSS、微信、调度。
+- `api`：HTTP 适配器。不做业务判断。
+- `main.py` 是唯一组合根：在此装配实现类。
+
+```python
+# ❌ BAD — 路由里抓网页并调微信
+@router.post("/publish")
+async def publish(url: str):
+    html = await httpx.get(url)
+    await weixin.send(html)
+
+# ✅ GOOD — 路由只调用例
+@router.post("/articles/{id}/publish")
+async def publish(id: str, svc: PublishService = Depends(get_publish)):
+    return await svc.publish(id)
+```
+
+禁止 application 导入 fastapi / sqlalchemy；禁止 domain 导入 infrastructure。

@@ -1,0 +1,21 @@
+---
+description: Vue3 前端约定
+globs: frontend/**/*.{ts,vue}
+alwaysApply: false
+---
+
+# 前端
+
+- Vue3 + `<script setup>` + TypeScript。页面不直接 `fetch`，走 `src/api`。
+- 组合式函数处理可复用请求/状态；Pinia 只放跨页状态。
+- 组件按展示 / 容器分离：视图不包含发布/抓取业务规则。
+- 绝不把 AppSecret 放到前端或请求体中回显。
+- 中文文案；空态、加载、失败三态必须有。
+
+```ts
+// ❌ BAD
+const data = await fetch('/articles').then(r => r.json())
+
+// ✅ GOOD
+const { items } = await articleApi.list({ status: 'ingested' })
+```

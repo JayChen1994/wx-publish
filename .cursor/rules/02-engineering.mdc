@@ -1,0 +1,25 @@
+---
+description: 通用工程原则：简单、可测、显式、可观测
+alwaysApply: true
+---
+
+# 工程原则
+
+- **KISS / YAGNI**：只实现当前用例。不提前微服务、消息队列、通用框架。
+- **显式优于隐式**：依赖构造器注入；禁止隐藏全局单例（配置对象除外）。
+- **错误不吞**：捕获后记录并转换为领域/HTTP 错误，带 `cause`。
+- **幂等与审计**：抓取按 URL 去重；发布写 `publications` 记录。
+- **命名表意**：`PublishArticleService` 而不是 `Manager` / `Helper` / `Util` 堆业务。
+- **测试测行为**：mock 端口，不测框架样板。
+- **改动要小**：只动当前需求相关文件；不做无关重构。
+
+```python
+# ❌ BAD
+except Exception:
+    pass
+
+# ✅ GOOD
+except WeChatAPIError as exc:
+    logger.error("wechat_publish_failed", extra={"article_id": article_id})
+    raise PublishFailed(str(exc)) from exc
+```
