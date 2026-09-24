@@ -56,7 +56,12 @@ export interface Health {
 
 export const api = {
   health: () => fetch('/api/v1/health').then((r) => parse<Health>(r)),
-  fetchDraft: (payload: { title: string; source_url: string; author?: string }) =>
+  fetchDraft: (payload: {
+    title: string
+    source_url: string
+    author?: string
+    body_html?: string
+  }) =>
     fetch('/api/v1/draft/fetch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

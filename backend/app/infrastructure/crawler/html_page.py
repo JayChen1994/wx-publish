@@ -206,6 +206,7 @@ class HtmlArticleCrawler:
                     "Mobile/15E148 MicroMessenger/8.0.38 NetType/WIFI Language/zh_CN"
                 ),
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Referer": "https://mp.weixin.qq.com/",
             }
         resp = await client.get(url, follow_redirects=True, headers=headers or None)
         if resp.status_code in (401, 403):
@@ -217,7 +218,14 @@ class HtmlArticleCrawler:
         if "环境异常" in html and "js_content" not in html:
             raise CrawlBlocked(
                 "微信返回验证页，服务器无法自动打开该链接。"
-                "请在浏览器打开文章后复制正文 HTML 到「正文 HTML」框，或稍后再试。"
+                "请粘贴正文，或稍后在浏览器复制完整链接再试。"
+            )
+        plain = BeautifulSoup(html, "lxml").get_text(" ", strip=True)
+        if "参数错误" in plain and "js_content" not in html:
+            raise CrawlBlocked(
+                "微信返回「参数错误」：链接不完整或仅能在微信内打开。"
+                "请在文章里点「··· → 复制链接」获取带 __biz= 的完整地址；"
+                "或在下方粘贴从微信复制的正文（含图片）。"
             )
         soup = BeautifulSoup(html, "lxml")
         rules = SITE_RULES.get(urlparse(url).netloc, {})

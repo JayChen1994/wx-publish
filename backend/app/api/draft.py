@@ -22,6 +22,7 @@ async def fetch_draft(
         payload.title,
         str(payload.source_url),
         payload.author,
+        payload.body_html,
     )
     return DraftOut(**data)
 

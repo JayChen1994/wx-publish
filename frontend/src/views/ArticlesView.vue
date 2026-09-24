@@ -28,6 +28,8 @@ const runAllButtonLabel = computed(() =>
 const linkForm = reactive({
   title: '',
   source_url: '',
+  author: '',
+  body_html: '',
 })
 
 const draft = ref<Draft | null>(null)
@@ -42,8 +44,12 @@ async function fetchPreview() {
     draft.value = await api.fetchDraft({
       title: linkForm.title,
       source_url: linkForm.source_url,
+      author: linkForm.author,
+      body_html: linkForm.body_html,
     })
-    notice.value = '已抓取并去水印，可直接编辑预览后发布（不会写入本地稿件库）'
+    notice.value = linkForm.body_html.trim()
+      ? '已按粘贴内容去水印，可预览后保存草稿'
+      : '已抓取并去水印，可直接编辑预览后保存草稿'
   } catch (err) {
     error.value = err instanceof Error ? err.message : '抓取失败'
   } finally {
@@ -124,6 +130,14 @@ onMounted(async () => {
       <input v-model="linkForm.title" placeholder="可与原文不同，抓取后会保留你填的标题" />
       <label>原文链接</label>
       <input v-model="linkForm.source_url" placeholder="https://mp.weixin.qq.com/s/..." required />
+      <label>原作者（可选）</label>
+      <input v-model="linkForm.author" />
+      <label>正文（可选，抓取失败时用）</label>
+      <textarea
+        v-model="linkForm.body_html"
+        rows="6"
+        placeholder="在微信里打开文章 → 全选复制 → 粘贴到这里（含图片）。填了此项会跳过链接抓取。"
+      />
       <button type="submit" :disabled="fetching">
         {{ fetching ? '抓取中…' : '抓取预览' }}
       </button>

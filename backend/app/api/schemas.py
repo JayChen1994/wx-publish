@@ -50,6 +50,10 @@ class DraftFetchRequest(BaseModel):
     title: str = Field(default="", max_length=200)
     source_url: HttpUrl
     author: str = Field(default="", max_length=80)
+    body_html: str = Field(
+        default="",
+        description="抓取失败时，粘贴从微信复制的正文 HTML",
+    )
 
 
 class DraftBody(BaseModel):

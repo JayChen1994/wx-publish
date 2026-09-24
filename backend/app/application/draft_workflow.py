@@ -1,5 +1,7 @@
 """不落库的编辑发布：抓取预览 → 润色 → 微信草稿。"""
 
+import httpx
+
 from app.core.config import settings
 from app.core.errors import AppError, PublishFailed
 from app.domain.formatting import normalize_body, plain_summary
@@ -11,6 +13,7 @@ from app.domain.models import (
     WeChatPublisher,
 )
 from app.domain.scoring import score_article
+from app.infrastructure.images import localize_images
 from app.infrastructure.sanitize import drop_dangerous_blocks, sanitize_wechat_html
 
 
@@ -55,8 +58,10 @@ class DraftWorkflowService:
         self._publisher = publisher
 
     async def fetch_preview(
-        self, title: str, url: str, author: str = ""
+        self, title: str, url: str, author: str = "", pasted_html: str = ""
     ) -> dict[str, str]:
+        if pasted_html.strip():
+            return await self._fetch_from_paste(title, url, author, pasted_html)
         item = await self._crawler.fetch_one(url)
         resolved_title = title.strip() or item.title
         resolved_author = author.strip() or item.author
@@ -68,6 +73,23 @@ class DraftWorkflowService:
             "body_html": body_html,
             "source_url": url.strip(),
             "author": resolved_author,
+        }
+
+    async def _fetch_from_paste(
+        self, title: str, url: str, author: str, pasted_html: str
+    ) -> dict[str, str]:
+        if not title.strip():
+            raise AppError("粘贴正文时请填写标题")
+        prepared = _prepare_body(pasted_html)
+        async with httpx.AsyncClient(timeout=30) as client:
+            body_html = await localize_images(client, prepared, page_url=url)
+        body_html = _prepare_body(body_html)
+        return {
+            "title": title.strip(),
+            "summary": plain_summary(body_html),
+            "body_html": body_html,
+            "source_url": url.strip(),
+            "author": author.strip(),
         }
 
     async def polish(
